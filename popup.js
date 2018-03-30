@@ -2,14 +2,14 @@ var message = $('#message');
 var current_page = 1;
 var records_per_page = 10;
 var objJson = [];
-chrome.tabs.executeScript(null, {
+/*chrome.tabs.executeScript(null, {
    file: "getPagesSource.js"
 }, function() {
   // If you try and inject into an extensions page or the webstore/NTP you'll get an error
   if (chrome.runtime.lastError) {
     message.text('There was an error injecting script : \n' + chrome.runtime.lastError.message);
   }
-});
+});*/
 function prevPage()
 {
     if (current_page > 1) {
@@ -90,23 +90,27 @@ chrome.runtime.onMessage.addListener(function(request, sender) {
      // var doc = new DOMParser().parseFromString(request.source, 'text/html');
      var doc = $(request.source);
      var termsList = doc.find(".SetPageTerm-content");
+     let obj, word, definitionTag, definition, imageRef, imgSrc;
      for(let item of termsList){
-      let obj = {};
-      let word = $(item).first(".SetPageTerm-wordText span").text();
+      obj = {};
+      word = $(item).find(".SetPageTerm-wordText span").eq(0).text();
       obj.word = word;
-      let definition = $(item).first(".SetPageTerm-definitionText span").text();
+      definitionTag = $(item).find(".SetPageTerm-definitionText span");
+      if(definitionTag.length !== 0){
+      	definition = definitionTag.eq(0).text();
+      } else {
+      	definition ='';
+      }
       obj.definition = definition;
-      let imageDivTag = $(item).first(".SetPageTerm-imageWrap");
-      // console.log(imageDivTag.html());
-      let imgSrc = '';
-      if(imageDivTag){
-         imgSrc = imageDivTag.find(".SetPageTerm-image").eq(0);
+      imageRef = $(item).find(".SetPageTerm-imageWrap a");
+      if(imageRef.length !== 0){
+         imgSrc = imageRef.eq(0).css('background-image').slice(0, -2).slice(5);
+       } else {
+       	imgSrc = '';
        }
-       console.log(imgSrc.html());
-       obj.imgSrc = imgSrc;
-       // console.log(obj);
-       objJson.push(obj);
 
+       obj.imgSrc = imgSrc;
+       objJson.push(obj);
      }
      changePage(1);
   }
