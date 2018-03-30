@@ -1,7 +1,15 @@
+var message = $('#message');
 var current_page = 1;
 var records_per_page = 10;
-
 var objJson = [];
+chrome.tabs.executeScript(null, {
+   file: "getPagesSource.js"
+}, function() {
+  // If you try and inject into an extensions page or the webstore/NTP you'll get an error
+  if (chrome.runtime.lastError) {
+    message.text('There was an error injecting script : \n' + chrome.runtime.lastError.message);
+  }
+});
 function prevPage()
 {
     if (current_page > 1) {
@@ -20,39 +28,43 @@ function nextPage()
     
 function changePage(page)
 {
-    var btn_next = document.getElementById("btn_next");
-    var btn_prev = document.getElementById("btn_prev");
-    var page_span = document.getElementById("page");
+    var btn_next = $("#btn_next");
+    var btn_prev = $("#btn_prev");
+    var page_span = $("#page");
  
     // Validate page
     if (page < 1) page = 1;
     if (page > numPages()) page = numPages();
 
-    message.innerHTML = "";
-
+    message.html("");
+    let template = '';
+    let descTemplate = '';
+    let imgTemplate = '';
     for (var i = (page-1) * records_per_page; i < (page * records_per_page); i++) {
-        let template = `
-          <div class="list-group-item  list-group-item-action d-flex align-items-center flex-row justify-content-between">
-            <div class="d-flex flex-column justify-content-between col-8">
-              <h6 class="mb-1">${objJson[i].word}</h5>
-              <small>${objJson[i].definition}</small>
-            </div>
-            <img src="${objJson[i].imgSrc}" style="max-height: 80px;" " alt="">
-          </div>`;
-        message.innerHTML += template;
+      descTemplate = objJson[i].definition?`<small>${objJson[i].definition}</small>`:'';
+      imgTemplate = objJson[i].imgSrc?`<img src="${objJson[i].imgSrc}" style="max-height: 80px;" " alt="">`:'';
+      template += `
+        <div class="list-group-item  list-group-item-action d-flex align-items-center flex-row justify-content-between">
+          <div class="d-flex flex-column justify-content-between col-8">
+            <h6 class="mb-1">${objJson[i].word}</h5>
+            ${descTemplate}
+          </div>
+          ${imgTemplate}
+        </div>`;
+        message.html(template);
     }
-    page_span.innerHTML = page + ' of '+ numPages();
+    page_span.text(page + ' of '+ numPages());
 
     if (page == 1) {
-        btn_prev.style.visibility = "hidden";
+        btn_prev.attr('disabled', true);
     } else {
-        btn_prev.style.visibility = "visible";
+        btn_prev.attr('disabled', false);
     }
 
     if (page == numPages()) {
-        btn_next.style.visibility = "hidden";
+        btn_next.attr('disabled', true);
     } else {
-        btn_next.style.visibility = "visible";
+        btn_next.attr('disabled', false);
     }
 }
 
@@ -75,43 +87,27 @@ function htmlToElement(html) {
 }
 chrome.runtime.onMessage.addListener(function(request, sender) {
   if (request.action == "getSource") {
-     // message.innerText = request.source;
-     var doc = new DOMParser().parseFromString(request.source, 'text/html');
-     var termsList = doc.getElementsByClassName("SetPageTerm-content");
-     console.log(termsList.length);
+     // var doc = new DOMParser().parseFromString(request.source, 'text/html');
+     var doc = $(request.source);
+     var termsList = doc.find(".SetPageTerm-content");
      for(let item of termsList){
       let obj = {};
-      let word = item.getElementsByClassName('SetPageTerm-wordText')[0].getElementsByTagName('span')[0].textContent;
+      let word = $(item).first(".SetPageTerm-wordText span").text();
       obj.word = word;
-      let definition = item.getElementsByClassName('SetPageTerm-definitionText')[0].getElementsByTagName('span')[0].textContent;
+      let definition = $(item).first(".SetPageTerm-definitionText span").text();
       obj.definition = definition;
-      let imageDivTag = item.getElementsByClassName('SetPageTerm-imageWrap')[0];
+      let imageDivTag = $(item).first(".SetPageTerm-imageWrap");
+      // console.log(imageDivTag.html());
       let imgSrc = '';
-      if(imageDivTag != undefined){
-         imgSrc = imageDivTag.getElementsByTagName('a')[0].style.backgroundImage.replace(/.*\s?url\([\'\"]?/, '').replace(/[\'\"]?\).*/, '');
+      if(imageDivTag){
+         imgSrc = imageDivTag.find(".SetPageTerm-image").eq(0);
        }
+       console.log(imgSrc.html());
        obj.imgSrc = imgSrc;
+       // console.log(obj);
        objJson.push(obj);
 
-      // message.append(htmlToElement(template));
      }
      changePage(1);
-     console.log(objJson);
   }
 });
-
-function onWindowLoad() {
-
-  var message = document.querySelector('#message');
-  chrome.tabs.executeScript(null, {
-     file: "getPagesSource.js"
-  }, function() {
-    // If you try and inject into an extensions page or the webstore/NTP you'll get an error
-    if (chrome.runtime.lastError) {
-      message.innerText = 'There was an error injecting script : \n' + chrome.runtime.lastError.message;
-    }
-  });
-
-}
-
-window.onload = onWindowLoad;
