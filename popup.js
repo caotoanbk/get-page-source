@@ -2,14 +2,14 @@ var message = $('#message');
 var current_page = 1;
 var records_per_page = 10;
 var objJson = [];
-/*chrome.tabs.executeScript(null, {
+chrome.tabs.executeScript(null, {
    file: "getPagesSource.js"
 }, function() {
   // If you try and inject into an extensions page or the webstore/NTP you'll get an error
   if (chrome.runtime.lastError) {
     message.text('There was an error injecting script : \n' + chrome.runtime.lastError.message);
   }
-});*/
+});
 function prevPage()
 {
     if (current_page > 1) {
@@ -41,12 +41,12 @@ function changePage(page)
     let descTemplate = '';
     let imgTemplate = '';
     for (var i = (page-1) * records_per_page; i < (page * records_per_page); i++) {
-      descTemplate = objJson[i].definition?`<small>${objJson[i].definition}</small>`:'';
-      imgTemplate = objJson[i].imgSrc?`<img src="${objJson[i].imgSrc}" style="max-height: 80px;" " alt="">`:'';
+      descTemplate = objJson[i].nghia?`<small>${objJson[i].nghia}</small>`:'';
+      imgTemplate = objJson[i].img?`<img src="${objJson[i].img}" style="max-height: 80px;" " alt="">`:'';
       template += `
         <div class="list-group-item  list-group-item-action d-flex align-items-center flex-row justify-content-between">
           <div class="d-flex flex-column justify-content-between col-8">
-            <h6 class="mb-1">${objJson[i].word}</h5>
+            <h6 class="mb-1">${objJson[i].tu}</h5>
             ${descTemplate}
           </div>
           ${imgTemplate}
@@ -81,37 +81,41 @@ $('#btn_prev').click(function(){
 });
 function htmlToElement(html) {
     var template = document.createElement('template');
-    html = html.trim(); // Never return a text node of whitespace as the result
+    html = html.trim();
     template.innerHTML = html;
     return template.content.firstChild;
 }
 chrome.runtime.onMessage.addListener(function(request, sender) {
   if (request.action == "getSource") {
-     // var doc = new DOMParser().parseFromString(request.source, 'text/html');
      var doc = $(request.source);
      var termsList = doc.find(".SetPageTerm-content");
      let obj, word, definitionTag, definition, imageRef, imgSrc;
      for(let item of termsList){
-      obj = {};
-      word = $(item).find(".SetPageTerm-wordText span").eq(0).text();
-      obj.word = word;
-      definitionTag = $(item).find(".SetPageTerm-definitionText span");
-      if(definitionTag.length !== 0){
-      	definition = definitionTag.eq(0).text();
-      } else {
-      	definition ='';
-      }
-      obj.definition = definition;
-      imageRef = $(item).find(".SetPageTerm-imageWrap a");
-      if(imageRef.length !== 0){
-         imgSrc = imageRef.eq(0).css('background-image').slice(0, -2).slice(5);
-       } else {
-       	imgSrc = '';
-       }
+        obj = {};
+        word = $(item).find(".SetPageTerm-wordText span").eq(0).text();
+        obj.tu = word;
+        definitionTag = $(item).find(".SetPageTerm-definitionText span");
+        if(definitionTag.length !== 0){
+        	definition = definitionTag.eq(0).text();
+        } else {
+        	definition ='';
+        }
+        obj.nghia = definition;
+        imageRef = $(item).find(".SetPageTerm-imageWrap a");
+        if(imageRef.length !== 0){
+           imgSrc = imageRef.eq(0).css('background-image').slice(0, -2).slice(5);
+         } else {
+         	imgSrc = '';
+         }
 
-       obj.imgSrc = imgSrc;
-       objJson.push(obj);
+         obj.img = imgSrc;
+         objJson.push(obj);
      }
+     let objForDownload = {};
+     objForDownload.name = "5000 words english";
+     objForDownload.wordlist  = objJson;
+     var data = "text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(objForDownload));
+    $('<a class="btn btn-sm btn-primary" target="_blank" href="data:' + data + '" download="data.json">Download JSON</a>').appendTo('#nav');
      changePage(1);
   }
 });
